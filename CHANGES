@@ -1,0 +1,7 @@
+CHANGES for vcp - Version CoPy
+
+0.01 Sat Dec  2 23:10:43 EST 2000
+   - First public release.  Moderately functional alpha code.  Supports
+   p4, cvs, RevML.  Expect APIs, UIs and enerthing else to change before
+   things settle down.
+
