@@ -349,8 +349,9 @@ sub exec {
    for my $act ( @{$self->{ACTS}} ) {
       local %ENV = %ENV ;
       $ENV{TARGET} = $target ;
-      delete $ENV{$act} for grep {/^DEP\d+/} keys %ENV ;
-      $ENV{"DEP$_"} = $deps->[$_] for (0..$#$deps) ;
+      delete $ENV{$act} for grep {/^(DEP|MATCH)\d+$/} keys %ENV ;
+      $ENV{"DEP$_"}   = $deps->[$_]    for (0..$#$deps) ;
+      $ENV{"MATCH$_"} = $matches->[$_] for (0..$#$matches) ;
 
       if ( ref $act eq 'CODE' ) {
 	 print STDERR "$target: execing CODE\n"
@@ -368,12 +369,15 @@ sub exec {
 	 push( @output, $out ) ;
       }
       elsif ( ! ref $act ) {
-	 print STDERR "$target: execing '$act' \n"
+	 $_ = $act;	# N.B. Work on a copy...
+ 	 s/\$(\d+)/$matches->[$1-1]/g ;
+ 	 s/\$\{(\d+)\}/$matches->[$1-1]/g ;
+	 print STDERR "$target: execing '$_' \n"
 	    if $options->{debug} ;
          ## It's a command line in string form
 	 my $out ;
-	 run [ 'sh', '-c', $act ], \undef, \$out ;
-	 $act =~ m{(\S*)} ;
+	 run [ 'sh', '-c', $_ ], \undef, \$out ;
+	 $_ =~ m{(\S*)} ;
 	 my $cmd = $1 ;
 	 push( @output, $out ) ;
       }

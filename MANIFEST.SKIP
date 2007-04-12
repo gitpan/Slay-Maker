@@ -1,6 +1,7 @@
 \.bak$
 \.sw[a-z]$
 \.tar\.gz$
+~$
 ^tmp/
 t/test-[^/]+\.revml
 ^blib/

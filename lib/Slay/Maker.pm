@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-$VERSION=0.01 ;
+$VERSION=0.02 ;
 
 =head1 NAME
 
@@ -892,7 +892,7 @@ already running.
 
 sub recurse_in {
    my ( $self ) = @_ ;
-   push @{$self->{RMAKE_STACK}}, [ @$self{'QUEUE','IN_QUEUE'} ] ;
+   CORE::push @{$self->{RMAKE_STACK}}, [ @$self{'QUEUE','IN_QUEUE'} ] ;
    $self->{QUEUE} = [] ;
    $self->{IN_QUEUE} = {} ;
 }
