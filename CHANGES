@@ -1,5 +1,8 @@
 CHANGES for vcp - Version CoPy
 
+0.04 Tue Jun 27 17:26:32 CDT 2007
+   - Fixed a problem with getting options with Slay::Maker->new.
+
 0.03 Tue Jun 26 15:05:41 CDT 2007
    - Reimplemented to Class::Std instead of pseudohashes.  This change
      necessitated a new interface for the "new" constructor routines,

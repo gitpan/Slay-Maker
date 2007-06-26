@@ -9,7 +9,6 @@ WriteMakefile(
 #    'EXE_FILES'     => [ 'bin/slaymake' ],
     'PREREQ_PM'     => {
         'IPC::Run'         => 0,
-	'Regexp::Shellish' => 0,
 	'Class::Std'       => 0,
     },
 );

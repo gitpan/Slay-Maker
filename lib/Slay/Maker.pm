@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-our $VERSION=0.03 ;
+our $VERSION=0.04 ;
 
 =head1 NAME
 
@@ -323,7 +323,7 @@ use Class::Std;
     my %errors_of       : ATTR( :default<[]> );
     my %in_queue_of     : ATTR;
     my %made_targets_of : ATTR;
-    my %options_of      : ATTR( :init<options> :default<{}> );
+    my %options_of      : ATTR( :init_arg<options> :default<{}> );
     my %output_of       : ATTR;
     my %rmake_stack_of  : ATTR( :default<[]> );
     my %rules_of        : ATTR( :default<[]> );
