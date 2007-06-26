@@ -96,7 +96,7 @@ $tests = [
 ## before testing Make
 
 sub {
-   $r = Slay::MakerRule->new( qw{ abc a(*)b(*)c }, qr/d(.*)e(.*)f/ ) ;
+   $r = Slay::MakerRule->new( { rule => [qw{ abc a(*)b(*)c }, qr/d(.*)e(.*)f/] } ) ;
    ok( ref( $r ), "Slay::MakerRule" ) ;
 },
 
@@ -115,22 +115,22 @@ sub {
    ok( join( ',', $exactness, @$matches ), '-3,123,456d789' ) ;
 },
 
-sub { ok( Slay::MakerRule->new( 'a\b'  )->matches( 'ab'   ) ? 1 : 0, 1 ) },
-sub { ok( Slay::MakerRule->new( 'a\b'  )->matches( 'a\b'  ) ? 1 : 0, 0 ) },
-sub { ok( Slay::MakerRule->new( 'a*b'  )->matches( 'a\b'  ) ? 1 : 0, 1 ) },
-sub { ok( Slay::MakerRule->new( 'a**b' )->matches( 'a\b'  ) ? 1 : 0, 1 ) },
-sub { ok( Slay::MakerRule->new( 'a*b'  )->matches( 'a/b'  ) ? 1 : 0, 0 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\b'}  )->matches( 'ab'   ) ? 1 : 0, 1 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\b'}  )->matches( 'a\b'  ) ? 1 : 0, 0 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a*b'}  )->matches( 'a\b'  ) ? 1 : 0, 1 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a**b'} )->matches( 'a\b'  ) ? 1 : 0, 1 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a*b'}  )->matches( 'a/b'  ) ? 1 : 0, 0 ) },
 # '\*' should match only a '*'.
-sub { ok( Slay::MakerRule->new( 'a\*b' )->matches( 'a\b'  ) ? 1 : 0, 0 ) },
-sub { ok( Slay::MakerRule->new( 'a\*b' )->matches( 'a-b'  ) ? 1 : 0, 0 ) },
-sub { ok( Slay::MakerRule->new( 'a\*b' )->matches( 'a*b'  ) ? 1 : 0, 1 ) },
-sub { ok( Slay::MakerRule->new( 'a\*b' )->matches( 'a\*b' ) ? 1 : 0, 0 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\*b'} )->matches( 'a\b'  ) ? 1 : 0, 0 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\*b'} )->matches( 'a-b'  ) ? 1 : 0, 0 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\*b'} )->matches( 'a*b'  ) ? 1 : 0, 1 ) },
+sub { ok( Slay::MakerRule->new( {rule=>'a\*b'} )->matches( 'a\*b' ) ? 1 : 0, 0 ) },
 
 ##
 ## Slay::Maker tests
 ##
 sub {
-   ok( ref( $m = Slay::Maker->new() ), "Slay::Maker" ) ;
+   ok( ref( $m = Slay::Maker->new({}) ), "Slay::Maker" ) ;
 },
 
 sub {
@@ -150,7 +150,7 @@ sub {
       [ qw( aa = ), \&pushe ],
       [ qw( ab = ), \&pushe ],
    ) ;
-   ok( @{$m->{RULES}}, 3 ) ;
+   ok( @{$m->rules}, 3 ) ;
 },
 
 sub {
@@ -173,7 +173,7 @@ sub {
       [ qw( a: b = ), 'perl -e "print \'$TARGET\'"' ],
       [ qw( b = ),    'perl -e "print \'$TARGET\'"' ],
    ) ;
-   ok( @{$m->{RULES}}, 2 ) ;
+   ok( @{$m->rules}, 2 ) ;
 },
 
 sub {
@@ -202,7 +202,7 @@ sub {
 	 [ qw( perl -e ), 'print \'$TARGET\'' ],
       ],
    ) ;
-   ok( @{$m->{RULES}}, 2 ) ;
+   ok( @{$m->rules}, 2 ) ;
 },
 
 sub {

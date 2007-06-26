@@ -1,5 +1,12 @@
 CHANGES for vcp - Version CoPy
 
+0.03 Tue Jun 26 15:05:41 CDT 2007
+   - Reimplemented to Class::Std instead of pseudohashes.  This change
+     necessitated a new interface for the "new" constructor routines,
+     so the interface is not backwards-compatible with version 0.02.
+   - Fixed a number of typos in the pod documentation.
+   - Added the get_rule_info method to Slay::Maker.
+
 0.02 Thu Apr 12 10:16:01 CDT 2007
    - Created $MATCH0, $MATCH1, ... environment variables for shell
      commands to use.
@@ -8,6 +15,6 @@ CHANGES for vcp - Version CoPy
 
 0.01 Sat Dec  2 23:10:43 EST 2000
    - First public release.  Moderately functional alpha code.  Supports
-   p4, cvs, RevML.  Expect APIs, UIs and enerthing else to change before
-   things settle down.
+     p4, cvs, RevML.  Expect APIs, UIs and enerthing else to change before
+     things settle down.
 

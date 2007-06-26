@@ -9,7 +9,7 @@ package Slay::MakerRule ;
 
 =head1 NAME
 
-Slay::MakerRule - a class for making things with dependancies
+Slay::MakerRule - a class for making things with dependencies
 
 =head1 SYNOPSIS
 
@@ -17,19 +17,30 @@ Slay::MakerRule - a class for making things with dependancies
 
    use Slay::MakerRule ;
 
-   $t1 = Slay::MakerRule->new(
+   $t1 = Slay::MakerRule->new( { rule => [
       \@target,         ## Filenames made by \@actions
       \@dependencies,   ## Files or Slay::MakerRule objects
       \@actions,        ## Command lines or sub{}
+      ] }
    ) ;
 
 Any or all of the three parameters may be scalars if there is only one
 thing to pass:
 
-   $t1 = Slay::MakerRule->new(
+   $t1 = Slay::MakerRule->new( { rule => [
       $target,
       $dependency,
       $action,
+      ] }
+   ) ;
+
+New can also be called with separate hash elements for each part:
+
+   $t1 = Slay::MakerRule->new( { 
+      PATS => \@target,         ## Filenames made by \@actions
+      DEPS => \@dependencies,   ## Files or Slay::MakerRule objects
+      ACTS => \@actions,        ## Command lines or sub{}
+      ] }
    ) ;
 
 =head1 DESCRIPTION
@@ -46,80 +57,67 @@ use File::Basename ;
 use File::Path ;
 use IPC::Run qw( run ) ;
 
-use fields qw(
-    ACTS
-    CMD
-    COMPILED_PATS
-    DEPS
-    OPTS
-    PATS
-    
-    _IN_MAKE
-) ;
+our $VERSION = 0.03;
 
+use Class::Std;
 
-sub new {
-   my $proto = shift ;
+{   # Creates the closure for the attributes
 
-   my Slay::MakerRule $self ;
-   my $class = ref $proto || $proto ;
-   {
-      no strict 'refs' ;
-      $self = bless [ \%{"$class\::FIELDS"} ], $class ;
-   }
+    # Attributes
 
-   $self->{PATS} = [] ;
-   $self->{DEPS} = [] ;
-   $self->{ACTS} = [] ;
-   $self->{OPTS} = {} ;
+    my %acts_of          : ATTR( :init_arg<ACTS> :default<[]> );
+    my %cmd_of           : ATTR ;
+    my %compiled_pats_of : ATTR ;
+    my %deps_of          : ATTR( :init_arg<DEPS> :default<[]> );
+    my %opts_of          : ATTR( :init_arg<OPTS> :default<{}> );
+    my %pats_of          : ATTR( :init_arg<PATS> :default<[]> );
+    my %in_make_of       : ATTR ;
 
-   if ( ref $_[0] eq 'HASH' ) {
-      ## It's a hash-style initter.
-      my ( $h ) = @_ ;
-      for ( keys %$h ) {
-	 if ( /^(?:PATS|DEPS|ACTS)$/ ) {
-	    $self->{$_} = $h->{$_} ;
-	 }
-	 else {
-	    $self->{OPTS}->{$_} = $h->{$_} ;
-	 }
-      }
+sub START {
+   my ($self, $ident, $args_ref) = @_;
 
-   }
-   else {
+   my $rule = $args_ref->{rule};
+   my @rule = ref $rule eq 'ARRAY' ? @$rule : $rule if defined $rule;
+
+   if (@rule) {
       ## It's qw( patterns, ':', dependencies, '=', actions ).
       ## NB: The ':' and '=' may appear as the last char of a scalar param.
-      $self->{OPTS} = pop if ref $_[-1] eq 'HASH' ;
-      my $a = $self->{PATS} ;
+      $acts_of{$ident} = [] unless $acts_of{$ident};
+      $deps_of{$ident} = [] unless $deps_of{$ident};
+      $opts_of{$ident} = {} unless $opts_of{$ident};
+      $pats_of{$ident} = [] unless $pats_of{$ident};
+
+      $opts_of{$ident} = pop @rule if ref $rule[-1] eq 'HASH' ;
+      my $a = $pats_of{$ident} ;
       my $e ;
       my $na ;
-      for ( @_ ) {
+      for ( @rule ) {
          $e = $_ ;
-	 $na = undef ; ;
+	 $na = undef ;
          unless ( ref $e ) {
-	    if ( $e =~ /^:$/ )  { $a  = $self->{DEPS} ; next } 
-	    if ( $e =~ /^=$/ )  { $a  = $self->{ACTS} ; next }
-	    if ( $e =~ s/:$// ) { $na = $self->{DEPS} }
-	    if ( $e =~ s/=$// ) { $na = $self->{ACTS} }
+	    if ( $e =~ /^:$/ )  { $a  = $deps_of{$ident} ; next } 
+	    if ( $e =~ /^=$/ )  { $a  = $acts_of{$ident} ; next }
+	    if ( $e =~ s/:$// ) { $na = $deps_of{$ident} }
+	    if ( $e =~ s/=$// ) { $na = $acts_of{$ident} }
 	 }
          push @$a, $e ;
 	 $a = $na if defined $na ;
       }
    }
    
-   return $self ;
 }
 
 
 =item check
 
-Builds the queue of things to make if this target or it's dependencies are
+Builds the queue of things to make if this target or its dependencies are
 out of date.
 
 =cut
 
 sub check {
    my Slay::MakerRule $self = shift ;
+   my $ident = ident $self;
    my $user_options = ref $_[-1] ? pop : {} ;
    my ( $make, $target, $matches ) = @_ ;
 
@@ -127,13 +125,13 @@ sub check {
    ## we copy them in case somebody changes their mind.
    my $options = {
       %{$make->options},
-      %{$self->{OPTS}},
+      %{$opts_of{$ident}},
       %$user_options,
    } ;
 
    print STDERR "$target: checking ".$self->targets." ", %$options, "\n"
       if $options->{debug} ;
-   if ( $self->{_IN_MAKE} ) {
+   if ( $in_make_of{$ident} ) {
       warn "Ignoring recursive dependency on " . $self->targets ;
       return ;
    }
@@ -177,7 +175,7 @@ sub check {
       else {
          $_ ;
       }
-   } @{$self->{DEPS}} ;
+   } @{$deps_of{$ident}} ;
 
    print STDERR "$target: deps: ", join( ', ', @deps ), "\n"
       if $options->{debug} && @deps ;
@@ -278,15 +276,12 @@ sub _compile_pattern {
 	 )
 	 }{
 	    if ( substr( $1, 0, 1 ) eq '\\' ) {
-#		  print STDERR "\\:$1\n" if $options->{DEBUG} ;
 	    }
 	    elsif ( substr( $1, 0, 1 ) eq '(' ) {
-#		  print STDERR "(:$1\n" if $options->{debug} ;
 	       ++$lparens
 		  if substr( $1, 0, 2 ) ne '(?' ;
 	    }
 	    else {
-#		  print STDERR "*:$1\n" if $options->{debug} ;
 	       --$exactness ;
 	    }
 	    ## Return the original value, just for speed's sake
@@ -317,6 +312,7 @@ sub exec {
    my $options = ref $_[-1] eq 'HASH' ? pop : {} ;
    my ( $make, $target, $deps, $matches ) = @_ ;
 
+   my $ident = ident $self;
    my @output ;
    print STDERR "$target: in exec() for ". $self->targets.", ", %$options, "\n"
       if $options->{debug} ; 
@@ -346,7 +342,7 @@ sub exec {
       }
    }
 
-   for my $act ( @{$self->{ACTS}} ) {
+   for my $act ( @{$acts_of{$ident}} ) {
       local %ENV = %ENV ;
       $ENV{TARGET} = $target ;
       delete $ENV{$act} for grep {/^(DEP|MATCH)\d+$/} keys %ENV ;
@@ -412,7 +408,8 @@ on context.
 
 sub targets {
    my Slay::MakerRule $self = shift ;
-   return wantarray ? @{$self->{PATS}} : join( ', ', @{$self->{PATS}} );
+   my $ident = ident $self;
+   return wantarray ? @{$pats_of{$ident}} : join( ', ', @{$pats_of{$ident}} );
 }
 
 
@@ -426,22 +423,23 @@ sub matches {
    my Slay::MakerRule $self = shift ;
    my $options = ref $_[-1] eq 'HASH' ? pop : {} ;
 
+   my $ident = ident $self;
    my ( $target ) = @_ ;
 
    my $max_exactness ;
    my @matches ;
 
-   if ( ! $self->{COMPILED_PATS} ) {
-      $self->{COMPILED_PATS} = [
+   if ( ! $compiled_pats_of{$ident} ) {
+      $compiled_pats_of{$ident} = [
          map {
 	    _compile_pattern $_
 	 } grep {
 	    ref $_ ne 'CODE'
-	 } @{$self->{PATS}}
+	 } @{$pats_of{$ident}}
       ] ;
    }
 #print STDERR join("\n",map { join(',', @$_ ) } @{$self->{COMPILED_PATS}} ), "\n" ;
-   for ( @{$self->{COMPILED_PATS}} ) {
+   for ( @{$compiled_pats_of{$ident}} ) {
       my ( $re, $exactness, $lparens ) = @$_ ;
 #print STDERR "$target: ?= $re\n" ;
       if ( $target =~ $re &&
@@ -467,5 +465,7 @@ sub matches {
 =back
 
 =cut
+
+}
 
 1 ;

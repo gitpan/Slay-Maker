@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-$VERSION=0.02 ;
+our $VERSION=0.03 ;
 
 =head1 NAME
 
@@ -14,33 +14,33 @@ Beta. Pretty stable, though underdocumented.
 
 Slay::Maker is a make engine that uses perl declaration syntax for
 rules, including regular expressions for targets and anonymous subs
-for targets, dependancies, and actions.
+for targets, dependencies, and actions.
 
 This allows you to tightly integrate a make engine in an application
-and to excercise a large amount of control over the make process, taking
+and to exercise a large amount of control over the make process, taking
 full advantage of Perl code at any point in the make cycle.
 
 =head1 RULE SYNTAX
 
 The rulebase syntax is:
 
-   [ @targets1, ':', @dependancies1, '=', @actions1, { option => val } ],
-   [ @targets2, ':', @dependancies2, '=', @actions2, { option => val } ],
-   [ @targets3, ':', @dependancies3, '=', @actions3, { option => val } ],
-   [ @targets4, ':', @dependancies4, '=', @actions4, { option => val } ],
+   [ @targets1, ':', @dependencies1, '=', @actions1, { option => val } ],
+   [ @targets2, ':', @dependencies2, '=', @actions2, { option => val } ],
+   [ @targets3, ':', @dependencies3, '=', @actions3, { option => val } ],
+   [ @targets4, ':', @dependencies4, '=', @actions4, { option => val } ],
    ...
 
 Each item in any of the three arrays may be a literal string or a 
 subroutine (CODE) reference.  A literal string is pretty much the same as
 using a literal string in a regular makefile.  You may also use regular
 expression ('Regexp') references (C<qr/.../>) in @targets and the
-C<$1>, C<$2>, ... variables inside strings in @dependancies:
+C<$1>, C<$2>, ... variables inside strings in @dependencies:
 
    [ qr/(.*).pm/, ':', "$1.pm.in", '=', sub { ... } ],
 
 Subroutine references are evaluated as lazily as possible when the
 make is being run, so any CODE refs in @targets will be called
-each time a make is run, CODE refs in @dependancies will only be
+each time a make is run, CODE refs in @dependencies will only be
 called if a target matches, and CODE refs in @actions are only
 called if the rule is fired.
 
@@ -51,7 +51,7 @@ it yet.
 
 Aside from strings and Regexps, you will be able to use CODE refs in
 the target list.  These are called each time the rule is evaluated,
-which will usually happen once per target or dependancy being 
+which will usually happen once per target or dependency being 
 checked when the make is run.
 
 A target sub declaration might look like:
@@ -64,22 +64,22 @@ A target sub declaration might look like:
 
 (if target subs were implemented already).
 
-=head2 DEPENDANCIES
+=head2 DEPENDENCIES
 
-Dependancies may be strings or CODE references.  Plain strings have
+Dependencies may be strings or CODE references.  Plain strings have
 $1, $2, ... interpolation done on them (remember to \ escape the $1, etc.).
 
 CODE refs will be called if the target matches and must return a 
-possibly empty list of strings containing the names of dependancies.
+possibly empty list of strings containing the names of dependencies.
 Variable interpolation will not be done on the returned strings.  That
 would be obscene.
 
-A dependancy sub declaration might look like:
+A dependency sub declaration might look like:
 
    sub {
       my ( $maker, $target, $matches ) = @_ ;
       ...
-      return @dependancies ;
+      return @dependencies ;
    },
 
 where
@@ -102,16 +102,16 @@ An action sub declaration might look like:
    sub {
       my ( $maker, $target, $deps, $matches ) = @_ ;
       ...
-      return @dependancies ;
+      return @dependencies ;
    },
 
 where
 
    $maker    refers to the Slay::Maker (or subclass) being run
    $target   is the target that matched (in the event of multiple targets)
-   $deps     is an ARRAY of the expanded dependancies.  There's no way
+   $deps     is an ARRAY of the expanded dependencies.  There's no way
              of telling which are freshly rebuilt, but you can track that
-	     yourself in the action rules of the dependancies, if you
+	     yourself in the action rules of the dependencies, if you
 	     like.
    $matches  is an ARRAY of the values extracted from $1, $2, etc.
 
@@ -119,15 +119,15 @@ where
 
 A target may be moved off to a backup location before it is rebuilt, so
 that it may be restored if rebuilding fails.  This is also used for
-the optional restoral of modification times described below.
+the optional restoration of modification times described below.
 
-Restoral needs to be done manually by calling the L</restore> method,
+Restoration needs to be done manually by calling the L</restore> method,
 and you can call the L</backup> method, too.
 
 The L</backup> method will be called automatically if modification
-time restoral is enabled for a target.
+time restoration is enabled for a target.
 
-=head1 MODIFICATION TIME RESTORAL
+=head1 MODIFICATION TIME RESTORATION
 
 One unusual option is that a target file's modification time can
 be restored if it is unchanged after being updated.  This can be
@@ -139,10 +139,10 @@ in file size or by executing 'diff --brief' between a target's backup
 and it's new version.  Other methods, such as hashing or block-by-block
 binary comparison will be implemented in the future if needed.
 
-This is controled by the L</detect_no_diffs> option passed to the
+This is controlled by the L</detect_no_diffs> option passed to the
 base class constructor:
 
-   my $self = $class->SUPER::new( ..., { detect_no_diffs => 1 } ) ;
+   my $self = Slay::Maker->new( ..., options => { detect_no_diffs => 1 } ) ;
 
 and can be passed as an option to any rule.
 
@@ -158,7 +158,8 @@ first, then builds some rules.
 
    package Safari::Cvs::Make ;
 
-   @ISA = qw( Slay::Maker ) ;
+   use Class::Std ;
+   use base qw( Slay::Maker ) ;
 
    use strict ;
    use IPC::Run ;
@@ -311,20 +312,23 @@ use Carp ;
 use Cwd () ;
 use File::Copy qw( copy move ) ;
 use File::Spec::Unix ;
-use Slay::MakerRule ;
+use Slay::MakerRule 0.03;
 
-use fields qw(
-   COMMENTS
-   ERRORS
-   IN_QUEUE
-   MADE_TARGETS
-   OPTIONS
-   OUTPUT
-   RMAKE_STACK
-   RULES
-   QUEUE
-) ;
+use Class::Std;
 
+{   # Creates the closure for the attributes
+
+    # Attributes
+    my %comments_of     : ATTR( :default<[]> );
+    my %errors_of       : ATTR( :default<[]> );
+    my %in_queue_of     : ATTR;
+    my %made_targets_of : ATTR;
+    my %options_of      : ATTR( :init<options> :default<{}> );
+    my %output_of       : ATTR;
+    my %rmake_stack_of  : ATTR( :default<[]> );
+    my %rules_of        : ATTR( :default<[]> );
+    my %queue_of        : ATTR( :default<[]> );
+    
 ## A few things that are cached for performane, so we're not always hittine
 ## the kernel up for filesystem data.
 my %stat_cache ;
@@ -344,11 +348,13 @@ my $real_cwd_cache ;
 
 Constructor.
 
-   my $rules = [
-      # ...
-   ] ;
-   my $maker = Slay::Maker->new( $rules ) ;
-   my $maker = Slay::Maker->new( $rules, { option => 1 } ) ;
+  my $rules = [
+     # ...
+  ] ;
+  my $maker = Slay::Maker->new( { } );
+  my $maker = Slay::Maker->new( { rules => $rules } ) ;
+  my $maker = Slay::Maker->new( { rules => $rules,
+                                  options => { option => 1 } } ) ;
 
 options (which can also be defined on a per-rule basis) are:
 
@@ -387,30 +393,11 @@ and rules' options take precedence over those passed to new().
 
 =cut
 
-sub new {
-   my $proto = shift ;
+sub BUILD {
+    my ($self, $ident, $args_ref) = @_;
 
-   my $class = ref $proto || $proto ;
-
-   my Slay::Maker $self ;
-   {
-      no strict 'refs' ;
-      $self = bless [ \%{"$class\::FIELDS"} ], $class ;
-   }
-
-   my $options = ref $_[-1] eq 'HASH' ? pop : {} ;
-
-   $self->{ERRORS} = [] ;
-   $self->{OPTIONS} = $options ;
-   $self->{RMAKE_STACK} = [] ;
-   $self->{RULES} = [] ;
-   $self->{QUEUE} = [] ;
-   $self->{COMMENTS} = [] ;
-
-   $self->add_rules( @{$self->builtin_rules} ) ;
-   $self->add_rules( @_ ) ;
-
-   return $self ;
+    $self->add_rules( @{$self->builtin_rules} ) ;
+    $self->add_rules( @{$args_ref->{rules}} ) if $args_ref->{rules};
 }
 
 
@@ -424,7 +411,8 @@ Add rules (compiled or not) to the rule base.
 sub add_rules {
    my Slay::Maker $self = shift ;
 
-   push @{$self->{RULES}}, @{$self->compile_rules( @_ )} ;
+   my $ident = ident $self;
+   push @{$rules_of{$ident}}, @{$self->compile_rules( @_ )} ;   
 }
 
 
@@ -450,10 +438,11 @@ Builds a new queue of rules to be exec()ed to make a target
 sub build_queue {
    my Slay::Maker $self = shift ;
    my $options = ref $_[-1] ? pop : {} ;
-   
-   $self->{QUEUE} = [] ;
-   $self->{IN_QUEUE} = {} ;
-   $self->{ERRORS} = [] ;
+
+   my $ident = ident $self;
+   $queue_of   {$ident} = [];
+   $in_queue_of{$ident} = {};
+   $errors_of  {$ident} = [];
 
    $cwd_cache = undef ;
 
@@ -483,9 +472,9 @@ sub canonpath {
    my Slay::Maker $self = shift ;
    my ( $path ) = @_ ;
 
-   my $trailing_slash = $path =~ m{/$} ;
+   my $trailing_slash = $path =~ m!/$! ;
    $path = File::Spec::Unix->canonpath( $path ) ;
-   1 while $path =~ s{(^|/)[^/]+/\.\.(/|$)}{'/' if length "$1$2"}ge ;
+   1 while $path =~ s{(^|/)[^/]+/\.\.(/|\Z)}{'/' if length "$1$2"}ge ;
    $path .= '/' if $trailing_slash ;
    return $path ;
 }
@@ -493,7 +482,7 @@ sub canonpath {
 
 =item chdir
 
-Calls sytem's chdir(), die()s on failure, and uses the parameter as the
+Calls system chdir(), die()s on failure, and uses the parameter as the
 current directory.  The last is the main reason for this sub: if you chdir()
 to a symbolic link, then we want to know the symbolic directory, not the
 real one returned by cwd().
@@ -530,10 +519,11 @@ sub check_targets {
    my $options = ref $_[-1] ? pop : {} ;
    my ( @targets ) = @_ ;
    
+   my $ident = ident $self;
    for ( @targets ) {
       my ( $target, $r, $matches ) = $self->find_rule( $_, $options ) ;
       if ( ! defined $r ) {
-	 push @{$self->{ERRORS}}, "Don't know how to make $_"
+	 push @{$errors_of{$ident}}, "Don't know how to make $_"
 	    if ! -e $_ ;
 	 next ;
       }
@@ -545,7 +535,7 @@ sub check_targets {
 =item clear_caches
 
 Clears the stat cache, so the filesystem must be reexamined.  Only needed
-if Slay::Maker is being called repetetively.
+if Slay::Maker is being called repetitively.
 
 =cut
 
@@ -593,7 +583,7 @@ sub compile_rules {
    my Slay::Maker $self = shift ;
    return [
       map {
-	 ref $_ eq 'ARRAY' ? Slay::MakerRule->new( @$_ ) : $_ ;
+	 ref $_ eq 'ARRAY' ? Slay::MakerRule->new( { rule => $_ } ) : $_ ;
       } @_ 
    ] ;
 }
@@ -608,7 +598,7 @@ altered in-place, and the C<move> option may be passed:
 
    $maker->backup( $target, { move => 1 } ) ;
 
-If the target is an fiel which always changes size when it's changed,
+If the target is an file which always changes size when it is changed,
 you may pass the C<stat_only> option:
 
    $maker->backup( $target, { stat_only => 1 } ) ;
@@ -651,7 +641,7 @@ sub backup {
 
 =item cwd
 
-Returns the current working directory, from the cache if that's possible.
+Returns the current working directory, from the cache if that is possible.
 
 =cut
 
@@ -685,14 +675,15 @@ Executes the queued commands.
 sub exec_queue {
    my Slay::Maker $self = shift ;
    
-   for ( @{$self->{QUEUE}} ) {
+   my $ident = ident $self;
+   for ( @{$queue_of{$ident}} ) {
       my ( $target, $rule, @more ) = @$_ ;
       $self->clear_stat( $target ) ;
-      push( @{$self->{OUTPUT}}, $rule->exec( $self, $target, @more ) ) ;
-      push( @{$self->{MADE_TARGETS}}, $target ) ;
+      push( @{$output_of{$ident}}, $rule->exec( $self, $target, @more ) ) ;
+      push( @{$made_targets_of{$ident}}, $target ) ;
    }
 
-   return @{$self->{MADE_TARGETS}} ;
+   return @{$made_targets_of{$ident}} ;
 }
 
 
@@ -706,6 +697,7 @@ sub find_rule {
    my Slay::Maker $self = shift ;
    my $options = ref $_[-1] eq 'HASH' ? pop : {} ;
 
+   my $ident = ident $self;
    my ( $target ) = @_ ;
 
    my $best_matches ;
@@ -747,7 +739,7 @@ sub find_rule {
       }
    }
 
-   for ( @{$self->{RULES}} ) {
+   for ( @{$rules_of{$ident}} ) {
       my ( $rank, $matches ) = $_->matches( $target, $options ) ;
       ( $best_target, $best_rule, $best_rank, $best_matches ) =
          ( $target, $_, $rank, $matches )
@@ -764,9 +756,35 @@ sub find_rule {
 }
 
 
+=item get_rule_info(<target>)
+
+Given a target that has already been processed with C<check_targets>,
+either directly or indirectly, returns the rule that is used to
+produce the target, a reference to an array of dependencies of the
+target, and a reference to an array of the matches.  Thus, you would call
+
+    ($rule, $deps, $matches) = get_rule_info($target);
+
+Returns an undefined rule if there is no processed rule to produce the target.
+
+=cut
+
+sub get_rule_info {
+    my Slay::Maker $self = shift;
+    my ($target) = @_;
+    my ($rule, $deps, $matches);
+
+    my $ident = ident $self;
+    foreach (@{$queue_of{$ident}}) {
+	return @$_[1..3] if $_->[0] eq $target;
+    }
+
+    return;
+}
+
 =item make
 
-Makes one or more target(s) if it's out of date.  Throws exceptions if
+Makes one or more target(s) if it is out of date.  Throws exceptions if
 the make fails.  May partially make targets.
 
 =cut
@@ -776,10 +794,11 @@ sub make {
    my Slay::Maker $self = shift ;
    my $options = ref $_[-1] ? pop : {} ;
 
+   my $ident = ident $self;
    if ( ! $self->make_level ) {
-      $self->{COMMENTS} = []  ;
-      $self->{OUTPUT}   = []  ;
-      $self->{MADE_TARGETS} = [] ;
+      $comments_of{$ident}     = []  ;
+      $output_of{$ident}       = []  ;
+      $made_targets_of{$ident} = [] ;
    }
 
    $self->recurse_in ;
@@ -787,7 +806,7 @@ sub make {
    eval {
       $self->build_queue( @_, $options ) ;
 
-      croak join( '', @{$self->{ERRORS}} ) if @{$self->{ERRORS}} ;
+      croak join( '', @{$errors_of{$ident}} ) if @{$errors_of{$ident}} ;
 
 #   push(
 #      @{$self->{COMMENTS}},
@@ -807,12 +826,12 @@ sub make {
       die ;
    }
 
-   print STDERR map { "$_\n" } @{$self->{COMMENTS}}
+   print STDERR map { "$_\n" } @{$comments_of{$ident}}
       if $options->{debug} && ! $self->make_level ;
 
-   croak join( '', @{$self->{ERRORS}} ) if @{$self->{ERRORS}} ;
+   croak join( '', @{$errors_of{$ident}} ) if @{$errors_of{$ident}} ;
 
-   return @{$self->{MADE_TARGETS}} ;
+   return @{$made_targets_of{$ident}} ;
 }
 
 
@@ -826,7 +845,8 @@ is equal to 1 when making something but not recursing.
 
 sub make_level {
    my Slay::Maker $self = shift ;
-   return scalar( @{$self->{RMAKE_STACK}} ) ;
+   my $ident = ident $self;
+   return scalar( @{$rmake_stack_of{$ident}} ) ;
 }
 
 
@@ -851,14 +871,17 @@ Sets / gets a reference to the options hash.
 
 sub options {
    my Slay::Maker $self = shift ;
-   $self->{OPTIONS} = shift if @_ ;
-   return $self->{OPTIONS} ;
+   my $ident = ident $self;
+   $options_of{$ident} = shift if @_ ;
+   return $options_of{$ident} ;
 }
 
 
 sub output {
    my Slay::Maker $self = shift ;
-   return wantarray ? @{$self->{OUTPUT}} : join( '', @{$self->{OUTPUT}} ) ;
+   my $ident = ident $self;
+   return wantarray ? @{$output_of{$ident}} :
+       join( '', @{$output_of{$ident}} ) ;
 }
 
 
@@ -873,13 +896,14 @@ sub push {
    my Slay::Maker $self = shift ;
    my ( $target, $rule ) = @_ ;
 
-   if ( $self->{IN_QUEUE}->{$target} ) {
-      push @{$self->{COMMENTS}}, "Only making $target once" ;
+   my $ident = ident $self;
+   if ( $in_queue_of{$ident}{$target} ) {
+      push @{$comments_of{$ident}}, "Only making $target once" ;
       return ;
    }
 
-   push @{$self->{QUEUE}}, [ @_ ] ;
-   $self->{IN_QUEUE}->{$target} = $rule ;
+   push @{$queue_of{$ident}}, [ @_ ] ;
+   $in_queue_of{$ident}{$target} = $rule ;
 }
 
 
@@ -892,9 +916,11 @@ already running.
 
 sub recurse_in {
    my ( $self ) = @_ ;
-   CORE::push @{$self->{RMAKE_STACK}}, [ @$self{'QUEUE','IN_QUEUE'} ] ;
-   $self->{QUEUE} = [] ;
-   $self->{IN_QUEUE} = {} ;
+   my $ident = ident $self;
+   CORE::push @{$rmake_stack_of{$ident}}, [ $queue_of{$ident},
+					    $in_queue_of{$ident} ] ;
+   $queue_of{$ident}    = [] ;
+   $in_queue_of{$ident} = {} ;
 }
 
 
@@ -907,7 +933,9 @@ already running.
 
 sub recurse_out {
    my Slay::Maker $self = shift ;
-   @$self{'QUEUE','IN_QUEUE'} = @{pop @{$self->{RMAKE_STACK}}} ;
+   my $ident = ident $self;
+   ($queue_of{$ident}, $in_queue_of{$ident}) =
+       @{pop @{$rmake_stack_of{$ident}}} ;
 }
 
 
@@ -919,7 +947,8 @@ Number of rules that need to be made.
 
 sub queue_size {
    my Slay::Maker $self = shift ;
-   scalar( @{$self->{QUEUE}} ) ;
+   my $ident = ident $self;
+   scalar( @{$queue_of{$ident}} ) ;
 }
 
 
@@ -973,10 +1002,11 @@ exactly match those of the rule to be replaced.
 
 sub replace_rules {
    my Slay::Maker $self = shift ;
+   my $ident = ident $self;
    for my $new_rule ( @{$self->compile_rules( @_ )} ) {
       my $targets = $new_rule->targets ;
 
-      for ( @{$self->{RULES}} ) {
+      for ( @{$rules_of{$ident}} ) {
 	 if ( $targets eq $_->targets ) {
 	    $_ = $new_rule ;
 	    return ;
@@ -1005,7 +1035,7 @@ When backup() has been called, it's return value can be passed
 to restore_target() to restore the original target, timestamps and all.
 
 NOTE: restoring a target that's not changed is likely to cuase it to
-be remade every time once a dependancy's timestamp becomes more recent.
+be remade every time once a dependency's timestamp becomes more recent.
 The C<deps> option allows the timestamps to be set to the newest of
 the original timestamps and the dependencies' timestamps.  This should
 not be done if there was an error generating the file.
@@ -1049,12 +1079,14 @@ Gets or replaces the rules list
 sub rules {
    my Slay::Maker $self = shift ;
 
+   my $ident = ident $self;
    if ( @_ ) {
-      $self->{RULES} = [] ;
+
+      $rules_of{$ident} = [] ;
       $self->add_rules( @_ ) ;
    }
 
-   return wantarray? @{$self->{RULES}} : $self->{RULES} ;
+   return wantarray? @{$rules_of{$ident}} : $rules_of{$ident} ;
 }
 
 =item size
@@ -1132,7 +1164,7 @@ sub target_unchanged {
 }
 
 
-=item back
+=back
 
 =head1 TODO
 
@@ -1140,7 +1172,7 @@ sub target_unchanged {
 
 =item *
 
-Propogate effects of restored timestamps.
+Propagate effects of restored timestamps.
 
 If a target has it's timestamps restored as a result of detecting no
 change (see options detect_no_size_change and detect_no_diffs), then
@@ -1150,7 +1182,7 @@ One way to do this is to re-check the mtime dependencies when rebuilding.
 Another is to subscribe later items in the queue to earlier items and have
 the earlier items set a flag that tells the later items to go ahead and
 execute.  Items could flag themselves to execute regardless, which we might
-want to do if a dependancy is not present when make is run.
+want to do if a dependency is not present when make is run.
 
 =item *
 
@@ -1172,5 +1204,6 @@ Please let me know of any improvements so I can have the option of folding
 them back in to the original.
 
 =cut
+}
 
 1 ;
