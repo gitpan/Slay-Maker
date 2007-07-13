@@ -6,3 +6,4 @@ README
 lib/Slay/Maker.pm
 lib/Slay/MakerRule.pm
 t/make.t
+META.yml                                 Module meta-data (added by MakeMaker)

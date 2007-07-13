@@ -1,5 +1,10 @@
 CHANGES for vcp - Version CoPy
 
+0.05 Fri Jul 13 09:57:42 CDT 2007
+   - Restructured MakerRule to add a subroutine "var_expand_dep" that
+     is usable from other contexts (original patch supplied by dakkar
+     <dakkar@thenautilus.net>).
+
 0.04 Tue Jun 27 17:26:32 CDT 2007
    - Fixed a problem with getting options with Slay::Maker->new.
 

@@ -57,7 +57,7 @@ use File::Basename ;
 use File::Path ;
 use IPC::Run qw( run ) ;
 
-our $VERSION = 0.03;
+our $VERSION = 0.05;
 
 use Class::Std;
 
@@ -107,6 +107,49 @@ sub START {
    
 }
 
+=item var_expand_dep($dependency,$target,$matches)
+
+Static function, mostly for internal use. Called by L</check> to
+expand variables inside a dependency. Returns the expanded string.
+
+Recognized expansions:
+
+=over 8
+
+=item C<$>I<digits>, C<${>I<digits>C<}>
+
+Expands to the value of C<< $matches->[ >>I<digits>C<-1]> (like in the
+normal C<s///> operator)
+
+=item C<$TARGET>, C<${TARGET}>
+
+Expands to the value of C<$target>
+
+=item C<$ENV{>I<name>C<}>
+
+Expands to the value of the environment variable I<name>.
+
+=back
+
+=cut
+
+sub var_expand_dep {
+    my ($dep,$target,$matches)=@_;
+    $dep=~s{
+            \$(?:
+            (?:\{(\d+)\})
+            |(?:(\d+))
+            |(?:(TARGET\b))
+            |(?:\{(TARGET)\})
+            |(?:ENV\{(.*?)\})
+        )
+        }{
+            defined($1)||defined($2) ? $matches->[($1||$2)-1] :
+            defined($3)||defined($4) ? $target :
+            defined($5)              ? $ENV{$5} : die('Something wrong')
+        }gsmxe;
+    return $dep;
+}
 
 =item check
 
@@ -163,14 +206,7 @@ sub check {
       }
       elsif ( /\$/ ) {
          my $dep = $_ ;
-	 ## TODO: Error out or provide a '' if $matches[n] undefined.
-	 ## TODO: Make this in to 1 s/// so that double interpolation
-	 ## won't occur if, say, $matches->[0] contains '${1}'
-	 $dep =~ s/\$(\d+)/$matches->[$1-1]/g ;
-	 $dep =~ s/\$\{(\d+)\}/$matches->[$1-1]/g ;
-	 ## TODO: allow s///s from $ENV here
-	 $dep =~ s/\$\{TARGET\}/$target/g ;
-	 $dep ;
+         var_expand_dep($dep,$target,$matches);
       }
       else {
          $_ ;
