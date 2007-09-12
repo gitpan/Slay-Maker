@@ -1,5 +1,13 @@
 CHANGES for vcp - Version CoPy
 
+0.06 Wed Sep 12 15:00:57 CDT 2007
+   - Fixed check for recursive dependencies
+   - Default to rebuilding a target if it has exactly the same time as
+     a dependency
+   - Fixed the tests so that they avoid a race condition when checking
+     that the modification time changes when there's a new file size
+     or the file contents change
+
 0.05 Fri Jul 13 09:57:42 CDT 2007
    - Restructured MakerRule to add a subroutine "var_expand_dep" that
      is usable from other contexts (original patch supplied by dakkar

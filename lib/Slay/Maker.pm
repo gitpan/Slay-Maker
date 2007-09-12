@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-our $VERSION=0.05 ;
+our $VERSION=0.06 ;
 
 =head1 NAME
 
@@ -983,7 +983,7 @@ sub remove_backup {
 	 print STDERR "Unlinking $backup->{BACKUP}.\n"
 	    if $options->{debug} || $backup->{OPTIONS}->{debug} ;
 
-	 unlink $backup->{BACKUP} or warn "$!: $backup->{BACKUP}" ;
+	 unlink $backup->{BACKUP} or carp "$!: $backup->{BACKUP}" ;
       }
       else {
 	 print STDERR "Can't unlink $backup->{BACKUP}: it's not present.\n"

@@ -363,6 +363,7 @@ sub { ok( \&slurp_file_0, \&file_0_content ) },
 sub {
    tweak_file_0() ;
    age_file_0() ;
+   sleep 1;
    $m->make( $file_0_name, {force=>1, detect_no_size_change=>1} ) ;
    ok( $m->output, "created $file_0_name" ) ;
 },
@@ -378,6 +379,7 @@ sub { ok( \&slurp_file_0, \&file_0_content ) },
 ## below 8 here (still), the size won't change (we test this).
 sub {
    age_file_0() ;
+   sleep 1;
 
    $m->make( $file_0_name, {force=>1, detect_no_diff_change=>1} ) ;
    ok( $m->output, "created $file_0_name" ) ;
@@ -440,14 +442,14 @@ sub {
    utime $now, $now, $file_1_name ;
    $m->clear_caches() ;
    $m->make( $file_1_name ) ;
-   ok( $m->output, '' ) ;
+   ok( $m->output, '1' ) ;
 },
 
 sub {
    my $now = time ;
    utime $now, $now, $file_0_name ;
-   utime $now-1, $now-1, $file_1_name ;
-   # Don't clear caches, so should not be remade
+   utime $now+1, $now+1, $file_1_name ;
+   $m->clear_caches() ;
    $m->make( $file_1_name ) ;
    ok( $m->output, '' ) ;
 },
@@ -461,6 +463,43 @@ sub {
    ok( $m->output, '1' ) ;
 },
 
+# Check that we catch recursive dependencies
+sub {
+   $m->rules(
+      [ $file_1_name,
+	':', $file_0_name, $file_1_name, 
+	'=', 'perl -pe 1 $DEP0>$TARGET; perl -e "print 1"'
+      ],
+   ) ;
+   my @warnings;
+   local $SIG{__WARN__} = sub {
+       push @warnings, @_;
+   };
+   $m->make( $file_1_name ) ;
+   ok( @warnings . $m->output, '11' ) ;
+},
+sub {
+   ## We rely on shell redirects here, but not on cat or echo.
+   unlink $file_0_name ;
+   unlink $file_1_name ;
+   my @warnings;
+   local $SIG{__WARN__} = sub {
+       push @warnings, @_;
+   };
+   $m->clear_caches() ;
+   $m->rules(
+      [ $file_1_name,
+	':', $file_0_name,
+	'=', 'perl -pe 1 $DEP0>$TARGET; perl -e "print 1"'
+      ],
+      [ $file_0_name,
+	':', $file_1_name,
+	'=', 'perl -e "print \\"$TARGET\\"">$TARGET; perl -e "print 0"'
+      ],
+   ) ;
+   $m->make( $file_1_name ) ;
+   ok( @warnings . $m->output, '101' ) ;
+},
 ] ;
 
 plan tests => scalar( @$tests ) ;

@@ -57,7 +57,7 @@ use File::Basename ;
 use File::Path ;
 use IPC::Run qw( run ) ;
 
-our $VERSION = 0.05;
+our $VERSION = 0.06;
 
 use Class::Std;
 
@@ -174,8 +174,9 @@ sub check {
 
    print STDERR "$target: checking ".$self->targets." ", %$options, "\n"
       if $options->{debug} ;
-   if ( $in_make_of{$ident} ) {
+   if ( $in_make_of{$ident}++ ) {
       warn "Ignoring recursive dependency on " . $self->targets ;
+      $in_make_of{$ident} = 0;
       return ;
    }
 
@@ -193,7 +194,7 @@ sub check {
 	    scalar( localtime $make->mtime( $target ) ),
 	 ),
 	 "\n"
-      ) ;;
+      ) ;
    }
 
    ## If the queue grows when our dependencies are checked, then we must
@@ -234,7 +235,7 @@ sub check {
 	       && ( ! defined $max_mtime || $dep_mtime > $max_mtime ) ;
       }
       push @required, "out of date"
-	 if defined $max_mtime && $max_mtime > $make->mtime( $target ) ;
+	 if defined $max_mtime && $max_mtime >= $make->mtime( $target ) ;
 
 
    }
@@ -248,6 +249,7 @@ sub check {
       print STDERR "$target: not required\n"
 	 if $options->{debug} ;
    }
+   $in_make_of{$ident}--;
 }
 
 
