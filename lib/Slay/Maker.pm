@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-our $VERSION=0.06 ;
+our $VERSION=0.07 ;
 
 =head1 NAME
 

@@ -442,7 +442,7 @@ sub {
    utime $now, $now, $file_1_name ;
    $m->clear_caches() ;
    $m->make( $file_1_name ) ;
-   ok( $m->output, '1' ) ;
+   ok( $m->output, '' ) ;
 },
 
 sub {
@@ -465,6 +465,10 @@ sub {
 
 # Check that we catch recursive dependencies
 sub {
+   my $now = time ;
+   utime $now, $now, $file_0_name ;
+   utime $now-1, $now-1, $file_1_name ;
+   $m->clear_caches() ;
    $m->rules(
       [ $file_1_name,
 	':', $file_0_name, $file_1_name, 

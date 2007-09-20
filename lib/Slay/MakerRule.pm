@@ -235,7 +235,7 @@ sub check {
 	       && ( ! defined $max_mtime || $dep_mtime > $max_mtime ) ;
       }
       push @required, "out of date"
-	 if defined $max_mtime && $max_mtime >= $make->mtime( $target ) ;
+	 if defined $max_mtime && $max_mtime > $make->mtime( $target ) ;
 
 
    }
