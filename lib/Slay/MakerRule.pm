@@ -177,7 +177,7 @@ sub check {
    if ( $in_make_of{$ident}++ ) {
       warn "Ignoring recursive dependency on " . $self->targets ;
       $in_make_of{$ident} = 0;
-      return ;
+      return 0;
    }
 
    my @required ;
@@ -197,10 +197,6 @@ sub check {
       ) ;
    }
 
-   ## If the queue grows when our dependencies are checked, then we must
-   ## be remade as well.
-   my $count = $make->queue_size ;
-
    my @deps = map {
       if ( ref $_ eq 'CODE' ) {
          $_->( $make, $target, $matches ) ;
@@ -217,8 +213,10 @@ sub check {
    print STDERR "$target: deps: ", join( ', ', @deps ), "\n"
       if $options->{debug} && @deps ;
 
-   $make->check_targets( @deps, $user_options ) ;
-   push @required, "!deps" if $make->queue_size > $count ;
+   ## If the deps are to be rebuilt when our dependencies are checked,
+   ## then we must be remade as well.
+   my $count=$make->check_targets( @deps, $user_options ) ;
+   push @required, "!deps" if $count;
 
    unless ( @required ) {
       ## The target exists && no deps need to be rebuilt.  See if the
@@ -240,16 +238,19 @@ sub check {
 
    }
 
+   $count=0;
+
    if ( @required ) {
       print STDERR "$target: required ( ", join( ', ', @required ), " )\n"
 	 if $options->{debug} ;
-      $make->push( $target, $self, \@deps, $matches, $options ) ;
+      $count+=$make->push( $target, $self, \@deps, $matches, $options ) ;
    }
    else {
       print STDERR "$target: not required\n"
 	 if $options->{debug} ;
    }
    $in_make_of{$ident}--;
+   return $count;
 }
 
 

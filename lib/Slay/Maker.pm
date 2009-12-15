@@ -1,6 +1,6 @@
 package Slay::Maker ;
 
-our $VERSION=0.07 ;
+our $VERSION=0.08 ;
 
 =head1 NAME
 
@@ -518,6 +518,8 @@ sub check_targets {
    my Slay::Maker $self = shift ;
    my $options = ref $_[-1] ? pop : {} ;
    my ( @targets ) = @_ ;
+
+   my $count=0;
    
    my $ident = ident $self;
    for ( @targets ) {
@@ -527,8 +529,9 @@ sub check_targets {
 	    if ! -e $_ ;
 	 next ;
       }
-      $r->check( $self, $target, $matches, $options ) ;
+      $count+=$r->check( $self, $target, $matches, $options ) ;
    }
+   return $count;
 }
 
 
@@ -899,11 +902,12 @@ sub push {
    my $ident = ident $self;
    if ( $in_queue_of{$ident}{$target} ) {
       push @{$comments_of{$ident}}, "Only making $target once" ;
-      return ;
+      return 1;
    }
 
    push @{$queue_of{$ident}}, [ @_ ] ;
    $in_queue_of{$ident}{$target} = $rule ;
+   return 1;
 }
 
 

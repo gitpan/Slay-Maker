@@ -19,6 +19,7 @@ my @e ;
 
 my $file_0_name = "make.t.1.txt" ;
 my $file_1_name = "make.t.0.txt" ;
+my $file_2_name = "make.t.2.txt" ;
 my $create_count = 0 ;
 my $file_0_content ;
 my @file_0_stats ;
@@ -503,6 +504,26 @@ sub {
    ) ;
    $m->make( $file_1_name ) ;
    ok( @warnings . $m->output, '101' ) ;
+},
+sub {
+   my $now = time ;
+   do { open my $fh, '>', $file_2_name };
+   utime $now-1, $now-1, $file_0_name ;
+   utime $now-1, $now-1, $file_1_name ;
+   utime $now, $now, $file_2_name ;
+   $m->clear_caches() ;
+   $m->rules(
+      [ $file_0_name,
+	':', $file_1_name,
+	'=', 'perl -pe 1 $DEP0>$TARGET; perl -e "print 1"'
+      ],
+      [ $file_1_name,
+	':', $file_2_name,
+	'=', 'perl -e "print \\"$TARGET\\"">$TARGET; perl -e "print 0"'
+      ],
+   ) ;
+   $m->make( $file_1_name, $file_0_name ) ;
+   ok( $m->output, '01' ) ;
 },
 ] ;
 
